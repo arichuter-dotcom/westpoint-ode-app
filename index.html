@@ -79,10 +79,10 @@ function solve(){
     }
 
     Plotly.newPlot("plot1", [
-        {x:tvals, y:a, name:"a(t)"},
-        {x:tvals, y:b, name:"b(t)"},
-        {x:tvals, y:c, name:"c(t)"}
-    ], {title:"ODE Solution", xaxis:{title:"t"}, yaxis:{title:"value"}});
+        {x:tvals, y:a, name:"AI1(t)"},
+        {x:tvals, y:b, name:"AI2(t)"},
+        {x:tvals, y:c, name:"Human(t)"}
+    ], {title:"Correct Data Added to the Internet", xaxis:{title:"Time t"}, yaxis:{title:"Correct Data"}});
 
     let Da=params.Da, Db=params.Db, Dh=params.Dh;
     let tt=[], ea=[], eb=[], ec=[];
@@ -96,10 +96,10 @@ function solve(){
     }
 
     Plotly.newPlot("plot2", [
-        {x:tt, y:ea, name:"% error a"},
-        {x:tt, y:eb, name:"% error b"},
-        {x:tt, y:ec, name:"% error c"}
-    ], {title:"% Relative Error", xaxis:{title:"t"}, yaxis:{title:"%"}});
+        {x:tt, y:ea, name:"AI1(t)"},
+        {x:tt, y:eb, name:"AI2(t)"},
+        {x:tt, y:ec, name:"Human(t)"}
+    ], {title:"% Incorrect Over Time", xaxis:{title:"Time t"}, yaxis:{title:"% Incorrect"}});
 }
 
 solve();
@@ -107,3 +107,4 @@ solve();
 
 </body>
 </html>
+
