@@ -1,110 +1,240 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Interactive ODE Solver</title>
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-<style>
-body { font-family: Arial; margin: 20px; }
-.slider-container { margin-bottom: 15px; }
-</style>
+  <meta charset="UTF-8">
+  <title>Interactive ODE Solver (Combined)</title>
+  https://cdn.plot.ly/plotly-latest.min.js</script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .slider-container { margin-bottom: 15px; }
+    .plots-2x2 { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    @media (min-width: 900px) {
+      .plots-2x2 { grid-template-columns: 1fr 1fr; }
+    }
+    .plot { width: 100%; height: 420px; }
+  </style>
 </head>
 <body>
 
-<h2>Interactive ODE System</h2>
+<h2>Interactive ODE Systems (Shared Sliders)</h2>
 
 <div id="sliders"></div>
-<div id="plot1" style="width:100%;height:400px;"></div>
-<div id="plot2" style="width:100%;height:400px;"></div>
+
+<div class="plots-2x2">
+  <div id="plot1" class="plot"></div>
+  <div id="plot2" class="plot"></div>
+  <div id="plot3" class="plot"></div>
+  <div id="plot4" class="plot"></div>
+</div>
 
 <script>
-// ---- PARAMETERS ----
+// ------------------------------
+// Shared PARAMETERS & SLIDERS
+// ------------------------------
 let params = {
-    Ic:1000, It:1000, Ra:0.95, Rb:0.97, Rh:0.8, Da:1, Db:2, Dh:15
+  Ic: 1000,  // initial constant term
+  It: 1000,  // initial denominator offset
+  Ra: 0.95,
+  Rb: 0.97,
+  Rh: 0.80,
+  Da: 1,
+  Db: 2,
+  Dh: 15
 };
 
-// ---- CREATE SLIDERS ----
-function createSlider(name, min, max, step, value){
-    return `
-    <div class='slider-container'>
-        <label>${name}: <span id='val_${name}'>${value}</span></label><br>
-        <input type="range" min="${min}" max="${max}" step="${step}" value="${value}"
-            oninput="params.${name}=parseFloat(this.value); document.getElementById('val_${name}').innerText=this.value; solve();">
+function createSlider(name, min, max, step, value) {
+  return `
+    <div class="slider-container">
+      <label>${name}: <span id="val_${name}">${value}</span></label><br>
+      <input type="range" min="${min}" max="${max}" step="${step}" value="${value}"
+        oninput="
+          params.${name} = parseFloat(this.value);
+          document.getElementById('val_${name}').innerText = this.value;
+          solve();
+        ">
     </div>`;
 }
 
+// Build slider panel (shared)
 document.getElementById("sliders").innerHTML =
-    createSlider("Ic",0,2000,50,1000)+
-    createSlider("It",0,2000,50,1000)+
-    createSlider("Ra",0,1,0.01,0.95)+
-    createSlider("Rb",0,1,0.01,0.97)+
-    createSlider("Rh",0,1,0.01,0.8)+
-    createSlider("Da",0,5,0.1,1)+
-    createSlider("Db",0,5,0.1,2)+
-    createSlider("Dh",0,30,1,15);
+  createSlider("Ic", 0, 2000, 50, params.Ic) +
+  createSlider("It", 0, 2000, 50, params.It) +
+  createSlider("Ra", 0, 1, 0.01, params.Ra) +
+  createSlider("Rb", 0, 1, 0.01, params.Rb) +
+  createSlider("Rh", 0, 1, 0.01, params.Rh) +
+  createSlider("Da", 0, 5, 0.1, params.Da) +
+  createSlider("Db", 0, 5, 0.1, params.Db) +
+  createSlider("Dh", 0, 30, 1, params.Dh);
 
-// ---- RK4 ODE Solver ----
-function rk4(f, y, t, h){
-    let k1 = f(t, y);
-    let k2 = f(t+h/2, y.map((yi,i)=>yi+h*k1[i]/2));
-    let k3 = f(t+h/2, y.map((yi,i)=>yi+h*k2[i]/2));
-    let k4 = f(t+h, y.map((yi,i)=>yi+h*k3[i]));
-    return y.map((yi,i)=>yi + h*(k1[i]+2*k2[i]+2*k3[i]+k4[i])/6);
+// ------------------------------
+// RK4 Integrator
+// ------------------------------
+function rk4(f, y, t, h) {
+  const k1 = f(t, y);
+  const k2 = f(t + h/2, y.map((yi, i) => yi + h*k1[i]/2));
+  const k3 = f(t + h/2, y.map((yi, i) => yi + h*k2[i]/2));
+  const k4 = f(t + h,   y.map((yi, i) => yi + h*k3[i]));
+  return y.map((yi, i) => yi + h*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]) / 6);
 }
 
-// ---- ODE System ----
-function system(t, z){
-    let a=z[0], b=z[1], c=z[2];
-    let {Ic,It,Ra,Rb,Rh,Da,Db,Dh}=params;
+// ------------------------------
+// ODE SYSTEM 1: (a, b, c)
+// ------------------------------
+function system1(t, z) {
+  const a = z[0], b = z[1], c = z[2];
+  const { Ic, It, Ra, Rb, Rh, Da, Db, Dh } = params;
 
-    let denom = (t)*(Da+Db+Dh)+It;
-    let dadt = ((a+b+c+Ic)/denom)*(Ra)*(Da);
-    let dbdt = ((a+b+c+Ic)/denom)*(Rb)*(Db);
-    let dcdt = (((((a+b+c+Ic)/denom)*(Ra)*(Da)+a) + (((a+b+c+Ic)/denom)*(Rb)*(Db)+b)) / ((t+1)*(Da+Db)) * Dh);
-    return [dadt, dbdt, dcdt];
+  const num   = (a + b + c + Ic);
+  const denom = t * (Da + Db + Dh) + It;
+
+  const dadt = (num/denom) * Ra * Da;
+  const dbdt = (num/denom) * Rb * Db;
+
+  // original structure: c fed by a and b channels then scaled by Dh
+  const c_num = ((num/denom) * Ra * Da + a) +
+                ((num/denom) * Rb * Db + b);
+  const dcdt = (c_num / ((t + 1) * (Da + Db))) * Dh;
+
+  return [dadt, dbdt, dcdt];
 }
 
-// ---- MAIN SOLVE ----
-function solve(){
-    let t0=0, t1=100, steps=400;
-    let h=(t1-t0)/steps;
-    let tvals=[], a=[], b=[], c=[];
-    let y=[0,0,0];
+// ------------------------------
+// ODE SYSTEM 2: (f, g, j)
+// ------------------------------
+function system2(t, z) {
+  const f = z[0], g = z[1], j = z[2];
+  const { Ic, It, Ra, Rb, Rh, Da, Db, Dh } = params;
 
-    for(let i=0;i<=steps;i++){
-        let t=t0+i*h;
-        tvals.push(t);
-        a.push(y[0]); b.push(y[1]); c.push(y[2]);
-        y = rk4(system, y, t, h);
-    }
+  const num   = (f + g + j + Ic);
+  const denom = t * (Da + Db + Dh) + It;
 
-    Plotly.newPlot("plot1", [
-        {x:tvals, y:a, name:"a(t)"},
-        {x:tvals, y:b, name:"b(t)"},
-        {x:tvals, y:c, name:"c(t)"}
-    ], {title:"ODE Solution", xaxis:{title:"t"}, yaxis:{title:"value"}});
+  const dfdt = (num/denom) * Ra * Da;
+  const dgdt = (num/denom) * Rb * Db;
 
-    let Da=params.Da, Db=params.Db, Dh=params.Dh;
-    let tt=[], ea=[], eb=[], ec=[];
-    for(let k=0;k<=steps;k++){
-        let t=t0+k*h;
-        tt.push(t);
-        let i_val=t*Da, g_val=t*Db, h_val=t*Dh;
-        ea.push(100*(i_val-a[k])/i_val);
-        eb.push(100*(g_val-b[k])/g_val);
-        ec.push(100*(h_val-c[k])/h_val);
-    }
+  const c_num = ((num/denom) * Ra * Da + f) +
+                ((num/denom) * Rb * Db + g);
+  const djdt = (c_num / ((t + 1) * (Da + Db))) * Dh;
 
-    Plotly.newPlot("plot2", [
-        {x:tt, y:ea, name:"% error a"},
-        {x:tt, y:eb, name:"% error b"},
-        {x:tt, y:ec, name:"% error c"}
-    ], {title:"% Relative Error", xaxis:{title:"t"}, yaxis:{title:"%"}});
+  return [dfdt, dgdt, djdt];
 }
 
+// ------------------------------
+// Solve both systems and plot
+// ------------------------------
+function solve() {
+  // time setup
+  const t0 = 0, t1 = 100, steps = 400;
+  const h = (t1 - t0) / steps;
+
+  // ---- System 1 ----
+  const tvals1 = [];
+  const a = [], b = [], c = [];
+  let y1 = [0, 0, 0];
+
+  for (let i = 0; i <= steps; i++) {
+    const t = t0 + i * h;
+    tvals1.push(t);
+    a.push(y1[0]);
+    b.push(y1[1]);
+    c.push(y1[2]);
+    y1 = rk4(system1, y1, t, h);
+  }
+
+  // Plot 1: Solution (a, b, c)
+  Plotly.newPlot("plot1", [
+    { x: tvals1, y: a, name: "a(t)", line: { color: "#1f77b4" } },
+    { x: tvals1, y: b, name: "b(t)", line: { color: "#ff7f0e" } },
+    { x: tvals1, y: c, name: "c(t)", line: { color: "#2ca02c" } }
+  ], {
+    title: "System 1 Solution (a, b, c)",
+    xaxis: { title: "t" },
+    yaxis: { title: "value" },
+    margin: { t: 40 }
+  }, {responsive: true});
+
+  // Plot 2: % Relative Error for System 1
+  const { Da, Db, Dh } = params;
+  const tt1 = [], ea = [], eb = [], ec = [];
+  for (let k = 1; k <= steps; k++) {
+    const t = t0 + k * h;
+    tt1.push(t);
+    const a_true = t * Da;
+    const b_true = t * Db;
+    const c_true = t * Dh;
+
+    ea.push(100 * (a_true - a[k]) / (a_true || 1));
+    eb.push(100 * (b_true - b[k]) / (b_true || 1));
+    ec.push(100 * (c_true - c[k]) / (c_true || 1));
+  }
+
+  Plotly.newPlot("plot2", [
+    { x: tt1, y: ea, name: "% error a(t)", line: { color: "#1f77b4" } },
+    { x: tt1, y: eb, name: "% error b(t)", line: { color: "#ff7f0e" } },
+    { x: tt1, y: ec, name: "% error c(t)", line: { color: "#2ca02c" } }
+  ], {
+    title: "System 1 % Relative Error",
+    xaxis: { title: "t" },
+    yaxis: { title: "%" },
+    margin: { t: 40 }
+  }, {responsive: true});
+
+  // ---- System 2 ----
+  const tvals2 = [];
+  const fvals = [], gvals = [], jvals = [];
+  let y2 = [0, 0, 0];
+
+  for (let i = 0; i <= steps; i++) {
+    const t = t0 + i * h;
+    tvals2.push(t);
+    fvals.push(y2[0]);
+    gvals.push(y2[1]);
+    jvals.push(y2[2]);
+    y2 = rk4(system2, y2, t, h);
+  }
+
+  // Plot 3: Solution (f, g, j)
+  Plotly.newPlot("plot3", [
+    { x: tvals2, y: fvals, name: "f(t) = AI1", line: { color: "#9467bd" } },
+    { x: tvals2, y: gvals, name: "g(t) = AI2", line: { color: "#8c564b" } },
+    { x: tvals2, y: jvals, name: "j(t) = Human", line: { color: "#e377c2" } }
+  ], {
+    title: "System 2 Solution (f, g, j)",
+    xaxis: { title: "t" },
+    yaxis: { title: "value" },
+    margin: { t: 40 }
+  }, {responsive: true});
+
+  // Plot 4: % Relative Error for System 2
+  const tt2 = [], ef = [], eg = [], ej = [];
+  for (let k = 1; k <= steps; k++) {
+    const t = t0 + k * h;
+    tt2.push(t);
+
+    const f_true = t * Da;
+    const g_true = t * Db;
+    const j_true = t * Dh;
+
+    ef.push(100 * (f_true - fvals[k]) / (f_true || 1));
+    eg.push(100 * (g_true - gvals[k]) / (g_true || 1));
+    ej.push(100 * (j_true - jvals[k]) / (j_true || 1));
+  }
+
+  Plotly.newPlot("plot4", [
+    { x: tt2, y: ef, name: "% error f(t)", line: { color: "#9467bd" } },
+    { x: tt2, y: eg, name: "% error g(t)", line: { color: "#8c564b" } },
+    { x: tt2, y: ej, name: "% error j(t)", line: { color: "#e377c2" } }
+  ], {
+    title: "System 2 % Relative Error",
+    xaxis: { title: "t" },
+    yaxis: { title: "%" },
+    margin: { t: 40 }
+  }, {responsive: true});
+}
+
+// initial render
 solve();
 </script>
 
 </body>
 </html>
-
