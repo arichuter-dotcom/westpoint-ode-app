@@ -9,18 +9,36 @@
 body { font-family: Arial; margin: 20px; }
 .slider-container { margin-bottom: 15px; }
 .graph { width:100%; height:400px; margin-top:40px; }
+label { font-weight: bold; }
 </style>
 </head>
 <body>
 
 <h2>Interactive ODE Systems (System 1 vs System 2)</h2>
 
+<!-- DROPDOWN MENU -->
+<label><strong>Select View:</strong></label>
+<select id="viewSelector" onchange="updateView()">
+    <option value="all">Show All Graphs</option>
+    <option value="system1">System 1 Only</option>
+    <option value="system2">System 2 Only</option>
+</select>
+<br><br>
+
+<!-- SLIDERS -->
 <div id="sliders"></div>
 
-<div id="plot1" class="graph"></div>
-<div id="plot2" class="graph"></div>
-<div id="plot3" class="graph"></div>
-<div id="plot4" class="graph"></div>
+<!-- SYSTEM 1 GRAPH GROUP -->
+<div id="system1Group">
+    <div id="plot1" class="graph"></div>
+    <div id="plot3" class="graph"></div>
+</div>
+
+<!-- SYSTEM 2 GRAPH GROUP -->
+<div id="system2Group">
+    <div id="plot2" class="graph"></div>
+    <div id="plot4" class="graph"></div>
+</div>
 
 <script>
 // -----------------------------------------------------------
@@ -33,7 +51,7 @@ let params = {
 };
 
 // -----------------------------------------------------------
-// SLIDER CREATION
+// CREATE SLIDERS
 // -----------------------------------------------------------
 function createSlider(name, min, max, step, value){
     return `
@@ -68,7 +86,7 @@ function rk4(f, y, t, h){
 }
 
 // -----------------------------------------------------------
-// SYSTEM 1 (constant human growth)
+// SYSTEM 1 — CONSTANT HUMAN RATE
 // -----------------------------------------------------------
 function system1(t, z){
     let a=z[0], b=z[1], c=z[2];
@@ -79,29 +97,29 @@ function system1(t, z){
 
     let dadt = (num/denom) * Ra * Da;
     let dbdt = (num/denom) * Rb * Db;
-    let dcdt = Rh * Dh;   // <-- SYSTEM 1 FIXED HUMAN RATE
+    let dcdt = Rh * Dh;   // constant human growth
 
     return [dadt, dbdt, dcdt];
 }
 
 // -----------------------------------------------------------
-// SYSTEM 2 (full human growth equation)
+// SYSTEM 2 — FULL HUMAN EQUATION
 // -----------------------------------------------------------
 function system2(t, z){
     let a=z[0], b=z[1], c=z[2];
     let {Ic,It,Ra,Rb,Rh,Da,Db,Dh} = params;
 
-    let num = (a + b + c + Ic);
+    let num = (a+b+c+Ic);
     let denom = t*(Da+Db+Dh) + It;
 
-    let dadt = (num/denom)*Ra*Da;
-    let dbdt = (num/denom)*Rb*Db;
+    let dadt = (num/denom) * Ra * Da;
+    let dbdt = (num/denom) * Rb * Db;
 
     let combo =
         ((num/denom)*Ra*Da + a) +
         ((num/denom)*Rb*Db + b);
 
-    let dcdt = (combo / ((t+1)*(Da+Db))) * Dh;   // <-- SYSTEM 2 HUMAN RATE
+    let dcdt = (combo / ((t+1)*(Da+Db))) * Dh;
 
     return [dadt, dbdt, dcdt];
 }
@@ -133,22 +151,37 @@ function solve(){
         y2 = rk4(system2, y2, t, h);
     }
 
-    // ---------------- GRAPH 1: System 1 ODE ----------------
+    // -------------------------------------------------------
+    // GRAPH 1 — SYSTEM 1 ODE
+    // -------------------------------------------------------
     Plotly.newPlot("plot1", [
-        {x:tvals, y:a1, name:"a(t) AI1"},
-        {x:tvals, y:b1, name:"b(t) AI2"},
-        {x:tvals, y:c1, name:"c(t) Humans (constant rate)"}
-    ], {title:"System 1 ODE Solution", xaxis:{title:"t"}, yaxis:{title:"value"}});
+        {x:tvals, y:a1, name:"AI1 — a(t)"},
+        {x:tvals, y:b1, name:"AI2 — b(t)"},
+        {x:tvals, y:c1, name:"Humans — c(t)"}
+    ], {
+        title:"SYSTEM 1 — ODE Solution (Constant Human Rate)",
+        xaxis:{title:"Time (t)"},
+        yaxis:{title:"Value"}
+    });
 
-    // ---------------- GRAPH 2: System 2 ODE ----------------
+    // -------------------------------------------------------
+    // GRAPH 2 — SYSTEM 2 ODE
+    // -------------------------------------------------------
     Plotly.newPlot("plot2", [
-        {x:tvals, y:a2, name:"a(t) AI1"},
-        {x:tvals, y:b2, name:"b(t) AI2"},
-        {x:tvals, y:c2, name:"c(t) Humans (full growth)"}
-    ], {title:"System 2 ODE Solution", xaxis:{title:"t"}, yaxis:{title:"value"}});
+        {x:tvals, y:a2, name:"AI1 — a(t)"},
+        {x:tvals, y:b2, name:"AI2 — b(t)"},
+        {x:tvals, y:c2, name:"Humans — c(t)"}
+    ], {
+        title:"SYSTEM 2 — ODE Solution (Full Human Growth Equation)",
+        xaxis:{title:"Time (t)"},
+        yaxis:{title:"Value"}
+    });
 
-    // ---------------- ERROR CALC FOR SYSTEM 1 ----------------
+    // -------------------------------------------------------
+    // ERROR CALC SYSTEM 1
+    // -------------------------------------------------------
     let tt=[], e1a=[], e1b=[], e1c=[];
+
     for(let i=1;i<tvals.length;i++){
         let t=tvals[i];
         let f_true=t*params.Da;
@@ -163,12 +196,18 @@ function solve(){
     }
 
     Plotly.newPlot("plot3", [
-        {x:tt, y:e1a, name:"% error AI1"},
-        {x:tt, y:e1b, name:"% error AI2"},
-        {x:tt, y:e1c, name:"% error Humans"}
-    ], {title:"System 1 — Percent Error", xaxis:{title:"t"}, yaxis:{title:"%"}});
+        {x:tt, y:e1a, name:"AI1 Error %"},
+        {x:tt, y:e1b, name:"AI2 Error %"},
+        {x:tt, y:e1c, name:"Human Error %"}
+    ], {
+        title:"SYSTEM 1 — Percent Error",
+        xaxis:{title:"Time (t)"},
+        yaxis:{title:"% Incorrect"}
+    });
 
-    // ---------------- ERROR CALC FOR SYSTEM 2 ----------------
+    // -------------------------------------------------------
+    // ERROR CALC SYSTEM 2
+    // -------------------------------------------------------
     let e2a=[], e2b=[], e2c=[];
     for(let i=1;i<tvals.length;i++){
         let t=tvals[i];
@@ -182,14 +221,39 @@ function solve(){
     }
 
     Plotly.newPlot("plot4", [
-        {x:tt, y:e2a, name:"% error AI1"},
-        {x:tt, y:e2b, name:"% error AI2"},
-        {x:tt, y:e2c, name:"% error Humans"}
-    ], {title:"System 2 — Percent Error", xaxis:{title:"t"}, yaxis:{title:"%"}});
+        {x:tt, y:e2a, name:"AI1 Error %"},
+        {x:tt, y:e2b, name:"AI2 Error %"},
+        {x:tt, y:e2c, name:"Human Error %"}
+    ], {
+        title:"SYSTEM 2 — Percent Error",
+        xaxis:{title:"Time (t)"},
+        yaxis:{title:"% Incorrect"}
+    });
+}
 
+// -----------------------------------------------------------
+// DROPDOWN BEHAVIOR
+// -----------------------------------------------------------
+function updateView() {
+    let v = document.getElementById("viewSelector").value;
+
+    if (v === "all") {
+        document.getElementById("system1Group").style.display = "block";
+        document.getElementById("system2Group").style.display = "block";
+    }
+    else if (v === "system1") {
+        document.getElementById("system1Group").style.display = "block";
+        document.getElementById("system2Group").style.display = "none";
+    }
+    else if (v === "system2") {
+        document.getElementById("system1Group").style.display = "none";
+        document.getElementById("system2Group").style.display = "block";
+    }
 }
 
 solve();
+updateView();
+
 </script>
 </body>
 </html>
