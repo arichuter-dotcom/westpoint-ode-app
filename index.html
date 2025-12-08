@@ -2,221 +2,114 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Interactive ODE System</title>
+<title>Interactive ODE Solver</title>
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-
 <style>
-body { font-family: Arial; margin: 20px; max-width: 1000px; }
-.slider-block { margin-bottom: 12px; }
-.slider-block label { font-weight: bold; }
-input[type=range] { width: 300px; }
-button {
-    padding: 10px 20px;
-    font-size: 15px;
-    margin-right: 10px;
-    margin-top: 20px;
-    cursor: pointer;
-}
-.graph-section { display: none; }
+body { font-family: Arial; margin: 20px; }
+.slider-container { margin-bottom: 15px; }
 </style>
 </head>
 <body>
 
-<h1>Interactive ODE Simulation</h1>
+<h2>Interactive ODE System</h2>
 
-<!-- Sliders -->
 <div id="sliders"></div>
-
-<!-- Buttons -->
-<button onclick="showODE()">Show ODE Solution</button>
-<button onclick="showError()">Show Percent Error</button>
-
-<!-- Graph Sections -->
-<div id="odeSection" class="graph-section">
-    <h2>Correct Data Added Over Time</h2>
-    <div id="plot1" style="width:100%;height:450px;"></div>
-
-    <h2>Correct Data — AI1 vs AI2 vs Human</h2>
-    <div id="plot2" style="width:100%;height:450px;"></div>
-</div>
-
-<div id="errorSection" class="graph-section">
-    <h2>% Incorrect Over Time — AI1</h2>
-    <div id="plot3" style="width:100%;height:450px;"></div>
-
-    <h2>% Incorrect Over Time — AI2 & Human</h2>
-    <div id="plot4" style="width:100%;height:450px;"></div>
-</div>
+<div id="plot1" style="width:100%;height:400px;"></div>
+<div id="plot2" style="width:100%;height:400px;"></div>
 
 <script>
-// ------------------- SLIDERS -------------------
-const params = {
-    Ic: 800, It: 1000,
-    Ra: 0.95, Rb: 0.97, Rh: 0.8,
-    Da: 1, Db: 2, Dh: 15
+// ---- PARAMETERS ----
+let params = {
+    Ic:1000, It:1000, Ra:0.95, Rb:0.97, Rh:0.8, Da:1, Db:2, Dh:15
 };
 
-function makeSlider(name, min, max, step) {
+// ---- CREATE SLIDERS ----
+function createSlider(name, min, max, step, value){
     return `
-    <div class="slider-block">
-        <label>${name}: <span id="val_${name}">${params[name]}</span></label><br>
-        <input type="range" min="${min}" max="${max}" step="${step}" 
-               value="${params[name]}"
-               oninput="params['${name}']=parseFloat(this.value); 
-                        document.getElementById('val_${name}').innerText=this.value;
-                        computeGraphs();">
-    </div>
-    `;
+    <div class='slider-container'>
+        <label>${name}: <span id='val_${name}'>${value}</span></label><br>
+        <input type="range" min="${min}" max="${max}" step="${step}" value="${value}"
+            oninput="params.${name}=parseFloat(this.value); document.getElementById('val_${name}').innerText=this.value; solve();">
+    </div>`;
 }
 
 document.getElementById("sliders").innerHTML =
-    makeSlider("Ic", 0, 2000, 10) +
-    makeSlider("It", 0, 2000, 10) +
-    makeSlider("Ra", 0, 1, 0.01) +
-    makeSlider("Rb", 0, 1, 0.01) +
-    makeSlider("Rh", 0, 1, 0.01) +
-    makeSlider("Da", 0, 5, 0.1) +
-    makeSlider("Db", 0, 5, 0.1) +
-    makeSlider("Dh", 0, 30, 1);
+    createSlider("Ic",0,2000,50,1000)+
+    createSlider("It",0,2000,50,1000)+
+    createSlider("Ra",0,1,0.01,0.95)+
+    createSlider("Rb",0,1,0.01,0.97)+
+    createSlider("Rh",0,1,0.01,0.8)+
+    createSlider("Da",0,5,0.1,1)+
+    createSlider("Db",0,5,0.1,2)+
+    createSlider("Dh",0,30,1,15);
 
-// ------------------- ODE SYSTEM -------------------
-function system(t, z, p) {
-    let [a, b, c] = z;
-    let {Ic,It,Ra,Rb,Rh,Da,Db,Dh} = p;
+// ---- RK4 ODE Solver ----
+function rk4(f, y, t, h){
+    let k1 = f(t, y);
+    let k2 = f(t+h/2, y.map((yi,i)=>yi+h*k1[i]/2));
+    let k3 = f(t+h/2, y.map((yi,i)=>yi+h*k2[i]/2));
+    let k4 = f(t+h, y.map((yi,i)=>yi+h*k3[i]));
+    return y.map((yi,i)=>yi + h*(k1[i]+2*k2[i]+2*k3[i]+k4[i])/6);
+}
 
-    let denom = (t * (Da + Db + Dh)) + It;
+// ---- ODE System ----
+function system(t, z){
+    let a=z[0], b=z[1], c=z[2];
+    let {Ic,It,Ra,Rb,Rh,Da,Db,Dh}=params;
 
-    let dadt = ((a + b + c + Ic) / denom) * Ra * Da;
-    let dbdt = ((a + b + c + Ic) / denom) * Rb * Db;
-
-    let cnum =
-        (((a + b + c + Ic) / denom) * Ra * Da + a) +
-        (((a + b + c + Ic) / denom) * Rb * Db + b);
-
-    let dcdt = (cnum / ((t + 1) * (Da + Db))) * Dh;
-
+    let denom = (t)*(Da+Db+Dh)+It;
+    let dadt = ((a+b+c+Ic)/denom)*(Ra)*(Da);
+    let dbdt = ((a+b+c+Ic)/denom)*(Rb)*(Db);
+    let dcdt = (((((a+b+c+Ic)/denom)*(Ra)*(Da)+a) + (((a+b+c+Ic)/denom)*(Rb)*(Db)+b)) / ((t+1)*(Da+Db)) * Dh);
     return [dadt, dbdt, dcdt];
 }
 
-// ------------------- RK4 SOLVER -------------------
-function rk4(f, y, t, h, p) {
-    let k1 = f(t, y, p);
-    let k2 = f(t + h/2, y.map((yi,i)=>yi + h*k1[i]/2), p);
-    let k3 = f(t + h/2, y.map((yi,i)=>yi + h*k2[i]/2), p);
-    let k4 = f(t + h, y.map((yi,i)=>yi + h*k3[i]), p);
+// ---- MAIN SOLVE ----
+function solve(){
+    let t0=0, t1=100, steps=400;
+    let h=(t1-t0)/steps;
+    let tvals=[], a=[], b=[], c=[];
+    let y=[0,0,0];
 
-    return y.map((yi,i)=> yi + h*(k1[i]+2*k2[i]+2*k3[i]+k4[i])/6);
-}
-
-// ------------------- COMPUTE GRAPHS -------------------
-function computeGraphs() {
-
-    // Time
-    let t0 = 0, t1 = 100, steps = 400;
-    let h = (t1 - t0) / steps;
-
-    let tvals = [];
-    let a_vals = [], b_vals = [], c_vals = [];
-
-    let y = [0,0,0];
-
-    for (let i=0; i<=steps; i++) {
-        let t = t0 + i*h;
+    for(let i=0;i<=steps;i++){
+        let t=t0+i*h;
         tvals.push(t);
-
-        a_vals.push(y[0]);
-        b_vals.push(y[1]);
-        c_vals.push(y[2]);
-
-        y = rk4(system, y, t, h, params);
+        a.push(y[0]); b.push(y[1]); c.push(y[2]);
+        y = rk4(system, y, t, h);
     }
 
-    // ------------------- PLOT 1 -------------------
     Plotly.newPlot("plot1", [
-        { x: tvals, y: a_vals, name: "AI1(t)" },
-        { x: tvals, y: b_vals, name: "AI2(t)" },
-        { x: tvals, y: c_vals, name: "Human(t)" }
-    ], {
-        title: "Correct Data Added Over Time",
-        xaxis:{title:"Time t"},
-        yaxis:{title:"Correct Data"}
-    });
+        {x:tvals, y:a, name:"a(t)"},
+        {x:tvals, y:b, name:"b(t)"},
+        {x:tvals, y:c, name:"c(t)"}
+    ], {title:"ODE Solution", xaxis:{title:"t"}, yaxis:{title:"value"}});
 
-    // ------------------- PLOT 2 -------------------
+    let Da=params.Da, Db=params.Db, Dh=params.Dh;
+    let tt=[], ea=[], eb=[], ec=[];
+    for(let k=0;k<=steps;k++){
+        let t=t0+k*h;
+        tt.push(t);
+        let i_val=t*Da, g_val=t*Db, h_val=t*Dh;
+        ea.push(100*(i_val-a[k])/i_val);
+        eb.push(100*(g_val-b[k])/g_val);
+        ec.push(100*(h_val-c[k])/h_val);
+    }
+
     Plotly.newPlot("plot2", [
-        { x: tvals, y: a_vals, name: "AI1(t)" },
-        { x: tvals, y: b_vals, name: "AI2(t)" },
-        { x: tvals, y: c_vals, name: "Human(t)" }
-    ], {
-        title: "Comparison of AI1, AI2, Human",
-        xaxis:{title:"Time t"},
-        yaxis:{title:"Correct Data"}
-    });
-
-    // ------------------- PERCENT ERROR -------------------
-    let interval = [], errA = [], errB = [], errC = [];
-
-    function interp(t) {
-        let idx = Math.min(Math.round((t/t1)*steps), steps);
-        return [a_vals[idx], b_vals[idx], c_vals[idx]];
-    }
-
-    for (let k=1; k<1000; k++) {
-        let t = k * 0.1;
-        let sol = interp(t);
-
-        let i_val = t * params.Da;
-        let g_val = t * params.Db;
-        let h_val = t * params.Dh;
-
-        errA.push(100 * (i_val - sol[0]) / i_val);
-        errB.push(100 * (g_val - sol[1]) / g_val);
-        errC.push(100 * (h_val - sol[2]) / h_val);
-
-        interval.push(t);
-    }
-
-    // ------------------- PLOT 3 -------------------
-    Plotly.newPlot("plot3", [
-        { x: interval, y: errA, name:"AI1 % Error" }
-    ], {
-        title: "% Incorrect Over Time — AI1",
-        xaxis:{title:"Time t"},
-        yaxis:{title:"% Incorrect"}
-    });
-
-    // ------------------- PLOT 4 -------------------
-    Plotly.newPlot("plot4", [
-        { x: interval, y: errB, name:"AI2 % Error" },
-        { x: interval, y: errC, name:"Human % Error" }
-    ], {
-        title: "% Incorrect Over Time — AI2 / Human",
-        xaxis:{title:"Time t"},
-        yaxis:{title:"% Incorrect"}
-    });
+        {x:tt, y:ea, name:"% error a"},
+        {x:tt, y:eb, name:"% error b"},
+        {x:tt, y:ec, name:"% error c"}
+    ], {title:"% Relative Error", xaxis:{title:"t"}, yaxis:{title:"%"}});
 }
 
-// ------------------- SHOW/HIDE SECTIONS -------------------
-function showODE() {
-    document.getElementById("odeSection").style.display = "block";
-    document.getElementById("errorSection").style.display = "none";
-}
-
-function showError() {
-    document.getElementById("odeSection").style.display = "none";
-    document.getElementById("errorSection").style.display = "block";
-}
-
-// Initial load:
-computeGraphs();
-showODE();
+solve();
 </script>
 
 </body>
 </html>
 
-
 </body>
 </html>
+
 
 
