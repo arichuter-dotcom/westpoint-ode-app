@@ -71,16 +71,16 @@ h2 {
     <option value="all">Show All</option>
 </select>
 
-<!-- SLIDER PANEL -->
+<!-- SLIDERS -->
 <div id="sliders"></div>
 
-<!-- ODE GRAPH GROUP -->
+<!-- ODE GRAPHS -->
 <div id="odeGroup">
     <div id="plot1" class="graph"></div>
     <div id="plot2" class="graph"></div>
 </div>
 
-<!-- ERROR GRAPH GROUP -->
+<!-- ERROR GRAPHS -->
 <div id="errorGroup">
     <div id="plot3" class="graph"></div>
     <div id="plot4" class="graph"></div>
@@ -97,7 +97,7 @@ let params = {
 };
 
 // -----------------------------------------------------------
-// CREATE SLIDERS (PHONE FRIENDLY)
+// CREATE SLIDERS
 // -----------------------------------------------------------
 function createSlider(name, min, max, step, value){
     return `
@@ -134,7 +134,7 @@ function rk4(f, y, t, h){
 }
 
 // -----------------------------------------------------------
-// SYSTEM 1 (CONSTANT HUMAN RATE)
+// SYSTEM 1 — CONSTANT HUMAN RATE
 // -----------------------------------------------------------
 function system1(t, z){
     let a=z[0], b=z[1], c=z[2];
@@ -151,7 +151,7 @@ function system1(t, z){
 }
 
 // -----------------------------------------------------------
-// SYSTEM 2 (FULL HUMAN GROWTH EQUATION)
+// SYSTEM 2 — FULL HUMAN GROWTH EQUATION
 // -----------------------------------------------------------
 function system2(t, z){
     let a=z[0], b=z[1], c=z[2];
@@ -173,7 +173,7 @@ function system2(t, z){
 }
 
 // -----------------------------------------------------------
-// MAIN SOLVER + PLOTS
+// MAIN SOLVER + PLOTTING
 // -----------------------------------------------------------
 function solve(){
 
@@ -194,9 +194,7 @@ function solve(){
         y2 = rk4(system2, y2, t, h);
     }
 
-    // -------------------------------------------------------
-    // GRAPH 1 — SYSTEM 1 ODE
-    // -------------------------------------------------------
+    // ---------------- GRAPH 1 — SYSTEM 1 ODE ----------------
     Plotly.newPlot("plot1", [
         {x:tvals, y:a1, name:"AI1"},
         {x:tvals, y:b1, name:"AI2"},
@@ -207,9 +205,7 @@ function solve(){
         yaxis:{title:"Value"}
     });
 
-    // -------------------------------------------------------
-    // GRAPH 2 — SYSTEM 2 ODE
-    // -------------------------------------------------------
+    // ---------------- GRAPH 2 — SYSTEM 2 ODE ----------------
     Plotly.newPlot("plot2", [
         {x:tvals, y:a2, name:"AI1"},
         {x:tvals, y:b2, name:"AI2"},
@@ -220,14 +216,15 @@ function solve(){
         yaxis:{title:"Value"}
     });
 
-    // -------------------- ERROR CALCULATIONS --------------------
-    let tt=[], e1a=[], e1b=[], e1c=[], e2a=[], e2b=[], e2c[];
+    // ---------------- ERROR CALCULATIONS ----------------
+    let tt=[], e1a=[], e1b=[], e1c=[], e2a=[], e2b=[], e2c=[];
 
     for(let i=1;i<tvals.length;i++){
         let t=tvals[i];
-        let f_true=t*params.Da;
-        let g_true=t*2;
-        let j_true=t*15;
+
+        let f_true = t * params.Da;
+        let g_true = t * 2;
+        let j_true = t * 15;
 
         e1a.push(100*(f_true - a1[i]) / f_true);
         e1b.push(100*(g_true - b1[i]) / g_true);
@@ -240,9 +237,7 @@ function solve(){
         tt.push(t);
     }
 
-    // -------------------------------------------------------
-    // GRAPH 3 — SYSTEM 1 PERCENT ERROR
-    // -------------------------------------------------------
+    // ---------------- GRAPH 3 — SYSTEM 1 ERROR ----------------
     Plotly.newPlot("plot3", [
         {x:tt, y:e1a, name:"AI1 Error %"},
         {x:tt, y:e1b, name:"AI2 Error %"},
@@ -253,9 +248,7 @@ function solve(){
         yaxis:{title:"% Incorrect"}
     });
 
-    // -------------------------------------------------------
-    // GRAPH 4 — SYSTEM 2 PERCENT ERROR
-    // -------------------------------------------------------
+    // ---------------- GRAPH 4 — SYSTEM 2 ERROR ----------------
     Plotly.newPlot("plot4", [
         {x:tt, y:e2a, name:"AI1 Error %"},
         {x:tt, y:e2b, name:"AI2 Error %"},
@@ -268,7 +261,7 @@ function solve(){
 }
 
 // -----------------------------------------------------------
-// DROPDOWN LOGIC
+// DROPDOWN VIEW LOGIC
 // -----------------------------------------------------------
 function updateView() {
     let v = document.getElementById("viewSelector").value;
@@ -286,4 +279,3 @@ updateView();
 </script>
 </body>
 </html>
-
