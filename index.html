@@ -65,27 +65,29 @@ h2 {
 <h2>Interactive ODE Systems</h2>
 
 <!-- DROPDOWN MENU -->
-<label>Select View:</label>
+<label><strong>Select View:</strong></label>
 <select id="viewSelector" onchange="updateView()">
-    <option value="all">Show All Graphs</option>
-    <option value="system1">System 1 Only</option>
-    <option value="system2">System 2 Only</option>
+    <option value="ode">ODE Solution</option>
+    <option value="error">Percent Error</option>
+    <option value="all">Show All</option>
 </select>
+<br><br>
 
 <!-- SLIDERS -->
 <div id="sliders"></div>
 
-<!-- SYSTEM 1 GRAPH GROUP -->
-<div id="system1Group">
+<!-- ODE GRAPHS -->
+<div id="odeGroup">
     <div id="plot1" class="graph"></div>
-    <div id="plot3" class="graph"></div>
+    <div id="plot2" class="graph"></div>
 </div>
 
-<!-- SYSTEM 2 GRAPH GROUP -->
-<div id="system2Group">
-    <div id="plot2" class="graph"></div>
+<!-- ERROR GRAPHS -->
+<div id="errorGroup">
+    <div id="plot3" class="graph"></div>
     <div id="plot4" class="graph"></div>
 </div>
+
 
 <script>
 // -----------------------------------------------------------
@@ -249,11 +251,18 @@ function solve(){
 function updateView() {
     let v = document.getElementById("viewSelector").value;
 
-    document.getElementById("system1Group").style.display =
-        (v==="all" || v==="system1") ? "block" : "none";
-
-    document.getElementById("system2Group").style.display =
-        (v==="all" || v==="system2") ? "block" : "none";
+    if (v === "ode") {
+        document.getElementById("odeGroup").style.display = "block";
+        document.getElementById("errorGroup").style.display = "none";
+    }
+    else if (v === "error") {
+        document.getElementById("odeGroup").style.display = "none";
+        document.getElementById("errorGroup").style.display = "block";
+    }
+    else if (v === "all") {
+        document.getElementById("odeGroup").style.display = "block";
+        document.getElementById("errorGroup").style.display = "block";
+    }
 }
 
 solve();
@@ -262,3 +271,4 @@ updateView();
 </script>
 </body>
 </html>
+
