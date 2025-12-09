@@ -4,14 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Interactive ODE Solver — Mobile Optimized</title>
+<title>Interactive ODE Solver — System 1 & System 2</title>
 <script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min"></script>
 
 <style>
 body {
     font-family: Arial, sans-serif;
     margin: 10px;
-    padding: 0;
 }
 
 /* MOBILE-FRIENDLY SLIDERS */
@@ -29,7 +28,7 @@ input[type=range] {
 .graph {
     width: 100%;
     height: 350px;
-    margin-top: 25px;
+    margin-top: 30px;
 }
 
 /* LABELS & SELECT MENU */
@@ -42,7 +41,7 @@ select {
     width: 100%;
     padding: 10px;
     font-size: 17px;
-    margin-bottom: 15px;
+    margin-bottom: 18px;
     border-radius: 6px;
 }
 
@@ -52,7 +51,7 @@ h2 {
     font-size: 22px;
 }
 
-/* MOBILE VIEW TWEAKS */
+/* MOBILE OPTIMIZATION */
 @media (max-width: 600px) {
     h2 { font-size: 20px; }
     label { font-size: 16px; }
@@ -65,29 +64,27 @@ h2 {
 <h2>Interactive ODE Systems</h2>
 
 <!-- DROPDOWN MENU -->
-<label><strong>Select View:</strong></label>
+<label>Select View:</label>
 <select id="viewSelector" onchange="updateView()">
     <option value="ode">ODE Solution</option>
     <option value="error">Percent Error</option>
     <option value="all">Show All</option>
 </select>
-<br><br>
 
-<!-- SLIDERS -->
+<!-- SLIDER PANEL -->
 <div id="sliders"></div>
 
-<!-- ODE GRAPHS -->
+<!-- ODE GRAPH GROUP -->
 <div id="odeGroup">
     <div id="plot1" class="graph"></div>
     <div id="plot2" class="graph"></div>
 </div>
 
-<!-- ERROR GRAPHS -->
+<!-- ERROR GRAPH GROUP -->
 <div id="errorGroup">
     <div id="plot3" class="graph"></div>
     <div id="plot4" class="graph"></div>
 </div>
-
 
 <script>
 // -----------------------------------------------------------
@@ -100,16 +97,16 @@ let params = {
 };
 
 // -----------------------------------------------------------
-// SLIDER CREATION (PHONE-FRIENDLY)
+// CREATE SLIDERS (PHONE FRIENDLY)
 // -----------------------------------------------------------
 function createSlider(name, min, max, step, value){
     return `
-    <div class='slider-container'>
-        <label>${name}: <span id='val_${name}'>${value}</span></label>
+    <div class="slider-container">
+        <label>${name}: <span id="val_${name}">${value}</span></label>
         <input type="range" min="${min}" max="${max}" step="${step}" value="${value}"
             oninput="
-                params.${name} = parseFloat(this.value);
-                document.getElementById('val_${name}').innerText = this.value;
+                params.${name}=parseFloat(this.value);
+                document.getElementById('val_${name}').innerText=this.value;
                 solve();
             ">
     </div>`;
@@ -137,38 +134,38 @@ function rk4(f, y, t, h){
 }
 
 // -----------------------------------------------------------
-// SYSTEM 1 (constant human rate)
+// SYSTEM 1 (CONSTANT HUMAN RATE)
 // -----------------------------------------------------------
 function system1(t, z){
     let a=z[0], b=z[1], c=z[2];
     let {Ic,It,Ra,Rb,Rh,Da,Db,Dh} = params;
 
-    let num = (a + b + c + Ic);
+    let sum = a + b + c + Ic;
     let denom = t*(Da+Db+Dh) + It;
 
     return [
-        (num/denom) * Ra * Da,
-        (num/denom) * Rb * Db,
+        (sum/denom)*Ra*Da,
+        (sum/denom)*Rb*Db,
         Rh * Dh
     ];
 }
 
 // -----------------------------------------------------------
-// SYSTEM 2 (full human model)
+// SYSTEM 2 (FULL HUMAN GROWTH EQUATION)
 // -----------------------------------------------------------
 function system2(t, z){
     let a=z[0], b=z[1], c=z[2];
     let {Ic,It,Ra,Rb,Rh,Da,Db,Dh} = params;
 
-    let num = a + b + c + Ic;
+    let sum = a+b+c+Ic;
     let denom = t*(Da+Db+Dh) + It;
 
-    let dadt = (num/denom)*Ra*Da;
-    let dbdt = (num/denom)*Rb*Db;
+    let dadt = (sum/denom)*Ra*Da;
+    let dbdt = (sum/denom)*Rb*Db;
 
     let combo =
-        ((num/denom)*Ra*Da + a) +
-        ((num/denom)*Rb*Db + b);
+        ((sum/denom)*Ra*Da + a) +
+        ((sum/denom)*Rb*Db + b);
 
     let dcdt = (combo / ((t+1)*(Da+Db))) * Dh;
 
@@ -176,23 +173,20 @@ function system2(t, z){
 }
 
 // -----------------------------------------------------------
-// MAIN SOLVE + PLOT
+// MAIN SOLVER + PLOTS
 // -----------------------------------------------------------
 function solve(){
 
     let t0=0, t1=100, steps=300;
     let h=(t1-t0)/steps;
 
-    let tvals=[], a1=[], b1=[], c1=[];
-    let a2=[], b2=[], c2=[];
-
-    let y1=[0,0,0];
-    let y2=[0,0,0];
+    let tvals=[], a1=[], b1=[], c1=[], a2=[], b2=[], c2=[];
+    let y1=[0,0,0], y2=[0,0,0];
 
     for(let i=0;i<=steps;i++){
-        let t=t0+i*h;
-        tvals.push(t);
+        let t = t0+i*h;
 
+        tvals.push(t);
         a1.push(y1[0]); b1.push(y1[1]); c1.push(y1[2]);
         a2.push(y2[0]); b2.push(y2[1]); c2.push(y2[2]);
 
@@ -200,69 +194,90 @@ function solve(){
         y2 = rk4(system2, y2, t, h);
     }
 
+    // -------------------------------------------------------
+    // GRAPH 1 — SYSTEM 1 ODE
+    // -------------------------------------------------------
     Plotly.newPlot("plot1", [
         {x:tvals, y:a1, name:"AI1"},
         {x:tvals, y:b1, name:"AI2"},
         {x:tvals, y:c1, name:"Humans"}
-    ], {title:"System 1 — ODE Solution"});
+    ], {
+        title:"ODE Solution — System 1 (Constant Human Rate)",
+        xaxis:{title:"Time (t)"},
+        yaxis:{title:"Value"}
+    });
 
+    // -------------------------------------------------------
+    // GRAPH 2 — SYSTEM 2 ODE
+    // -------------------------------------------------------
     Plotly.newPlot("plot2", [
         {x:tvals, y:a2, name:"AI1"},
         {x:tvals, y:b2, name:"AI2"},
         {x:tvals, y:c2, name:"Humans"}
-    ], {title:"System 2 — ODE Solution"});
+    ], {
+        title:"ODE Solution — System 2 (Full Growth Model)",
+        xaxis:{title:"Time (t)"},
+        yaxis:{title:"Value"}
+    });
 
-    // ERROR
-    let tt=[], e1f=[], e1g=[], e1j=[], e2f=[], e2g=[], e2j=[];
+    // -------------------- ERROR CALCULATIONS --------------------
+    let tt=[], e1a=[], e1b=[], e1c=[], e2a=[], e2b=[], e2c[];
+
     for(let i=1;i<tvals.length;i++){
         let t=tvals[i];
-
         let f_true=t*params.Da;
         let g_true=t*2;
         let j_true=t*15;
 
-        e1f.push(100*(f_true - a1[i]) / f_true);
-        e1g.push(100*(g_true - b1[i]) / g_true);
-        e1j.push(100*(j_true - c1[i]) / j_true);
+        e1a.push(100*(f_true - a1[i]) / f_true);
+        e1b.push(100*(g_true - b1[i]) / g_true);
+        e1c.push(100*(j_true - c1[i]) / j_true);
 
-        e2f.push(100*(f_true - a2[i]) / f_true);
-        e2g.push(100*(g_true - b2[i]) / g_true);
-        e2j.push(100*(j_true - c2[i]) / j_true);
+        e2a.push(100*(f_true - a2[i]) / f_true);
+        e2b.push(100*(g_true - b2[i]) / g_true);
+        e2c.push(100*(j_true - c2[i]) / j_true);
 
         tt.push(t);
     }
 
+    // -------------------------------------------------------
+    // GRAPH 3 — SYSTEM 1 PERCENT ERROR
+    // -------------------------------------------------------
     Plotly.newPlot("plot3", [
-        {x:tt, y:e1f, name:"AI1"},
-        {x:tt, y:e1g, name:"AI2"},
-        {x:tt, y:e1j, name:"Humans"}
-    ], {title:"System 1 — % Error"});
+        {x:tt, y:e1a, name:"AI1 Error %"},
+        {x:tt, y:e1b, name:"AI2 Error %"},
+        {x:tt, y:e1c, name:"Human Error %"}
+    ], {
+        title:"Percent Error — System 1",
+        xaxis:{title:"Time (t)"},
+        yaxis:{title:"% Incorrect"}
+    });
 
+    // -------------------------------------------------------
+    // GRAPH 4 — SYSTEM 2 PERCENT ERROR
+    // -------------------------------------------------------
     Plotly.newPlot("plot4", [
-        {x:tt, y:e2f, name:"AI1"},
-        {x:tt, y:e2g, name:"AI2"},
-        {x:tt, y:e2j, name:"Humans"}
-    ], {title:"System 2 — % Error"});
+        {x:tt, y:e2a, name:"AI1 Error %"},
+        {x:tt, y:e2b, name:"AI2 Error %"},
+        {x:tt, y:e2c, name:"Human Error %"}
+    ], {
+        title:"Percent Error — System 2",
+        xaxis:{title:"Time (t)"},
+        yaxis:{title:"% Incorrect"}
+    });
 }
 
 // -----------------------------------------------------------
-// DROPDOWN VIEW CONTROL
+// DROPDOWN LOGIC
 // -----------------------------------------------------------
 function updateView() {
     let v = document.getElementById("viewSelector").value;
 
-    if (v === "ode") {
-        document.getElementById("odeGroup").style.display = "block";
-        document.getElementById("errorGroup").style.display = "none";
-    }
-    else if (v === "error") {
-        document.getElementById("odeGroup").style.display = "none";
-        document.getElementById("errorGroup").style.display = "block";
-    }
-    else if (v === "all") {
-        document.getElementById("odeGroup").style.display = "block";
-        document.getElementById("errorGroup").style.display = "block";
-    }
+    document.getElementById("odeGroup").style.display =
+        (v==="ode" || v==="all") ? "block" : "none";
+
+    document.getElementById("errorGroup").style.display =
+        (v==="error" || v==="all") ? "block" : "none";
 }
 
 solve();
@@ -271,4 +286,3 @@ updateView();
 </script>
 </body>
 </html>
-
